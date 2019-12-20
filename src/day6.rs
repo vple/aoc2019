@@ -35,8 +35,8 @@ fn part2((_, orbitees): &(MultiMap<String, String>, HashMap<String, String>)) ->
     let mut you_parent = &orbitees["YOU"];
     let mut san_parent = &orbitees["SAN"];
 
-    let mut you_depth = calculate_depth(&orbitees, you_parent);
-    let mut san_depth = calculate_depth(&orbitees, san_parent);
+    let you_depth = calculate_depth(&orbitees, you_parent);
+    let san_depth = calculate_depth(&orbitees, san_parent);
     let diff = cmp::max(you_depth, san_depth) - cmp::min(you_depth, san_depth);
 
     if you_depth > san_depth {
