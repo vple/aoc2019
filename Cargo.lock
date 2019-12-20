@@ -32,12 +32,21 @@ version = "0.1.0"
 dependencies = [
  "aoc-runner 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "aoc-runner-derive 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "multimap 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "itoa"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "multimap"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "serde 1.0.104 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "proc-macro2"
@@ -136,6 +145,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum aoc-runner-derive 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "696802dfe4dd87aa979f63a9e46ae98a31b5eb3d7aff5071de426e9bb3d1cfd2"
 "checksum aoc-runner-internal 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "274b0ba7f3669a45ec0aaacf94eb032a749de880ab776091576cca94037c9982"
 "checksum itoa 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "501266b7edd0174f8530248f87f99c88fbe60ca4ef3dd486835b8d8d53136f7f"
+"checksum multimap 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a97fbd5d00e0e37bfb10f433af8f5aaf631e739368dc9fc28286ca81ca4948dc"
 "checksum proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)" = "cf3d2011ab5c909338f7887f4fc896d35932e29146c12c8d01da6b22a80ba759"
 "checksum proc-macro2 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "9c9e470a8dc4aeae2dee2f335e8f533e2d4b347e1434e5671afc49b054592f27"
 "checksum quote 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)" = "6ce23b6b870e8f94f81fb0a363d65d86675884b34a09043c81e5562f11c1f8e1"
