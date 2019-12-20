@@ -8,7 +8,7 @@ fn parse(input: &str) -> Vec<i32> {
 #[aoc(day5, part1)]
 fn part1(program: &[i32]) -> i32 {
     let mut computer = Computer::initialize(program);
-    computer.set_input(1);
+    computer.add_input(1);
     let (outputs, _) = computer.run();
     *outputs.last().expect("No diagnostic!")
 }
@@ -16,7 +16,7 @@ fn part1(program: &[i32]) -> i32 {
 #[aoc(day5, part2)]
 fn part2(program: &[i32]) -> i32 {
     let mut computer = Computer::initialize(program);
-    computer.set_input(5);
+    computer.add_input(5);
     let (outputs, _) = computer.run();
     *outputs.last().expect("No diagnostic!")
 }

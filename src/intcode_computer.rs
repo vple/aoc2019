@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 pub fn parse_program(input: &str) -> Vec<i32> {
     input.split(',').filter_map(|v| v.parse().ok()).collect()
 }
@@ -6,7 +8,7 @@ pub struct Computer {
     memory: Vec<i32>,
     instruction_pointer: usize,
     halted: bool,
-    input: Option<i32>,
+    inputs: VecDeque<i32>,
     outputs: Vec<i32>,
 }
 
@@ -16,13 +18,13 @@ impl Computer {
             memory: program.to_vec(),
             instruction_pointer: 0,
             halted: false,
-            input: None,
+            inputs: VecDeque::new(),
             outputs: vec![],
         }
     }
 
-    pub fn set_input(&mut self, input: i32) {
-        self.input = Some(input);
+    pub fn add_input(&mut self, input: i32) {
+        self.inputs.push_back(input);
     }
 
     fn read_instruction(&self) -> Instruction {
@@ -41,7 +43,7 @@ impl Computer {
                 self.write(raw_values[2], mode_values[..2].iter().product());
             },
             Opcode::Input => {
-                let input = self.input.expect("No input provided!");
+                let input = self.inputs.pop_front().expect("No input provided!");
                 self.write(raw_values[0], input);
             },
             Opcode::Output => {
