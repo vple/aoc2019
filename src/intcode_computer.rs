@@ -1,7 +1,13 @@
+pub fn parse_program(input: &str) -> Vec<i32> {
+    input.split(',').filter_map(|v| v.parse().ok()).collect()
+}
+
 pub struct Computer {
     memory: Vec<i32>,
     instruction_pointer: usize,
     halted: bool,
+    input: Option<i32>,
+    outputs: Vec<i32>,
 }
 
 impl Computer {
@@ -10,7 +16,13 @@ impl Computer {
             memory: program.to_vec(),
             instruction_pointer: 0,
             halted: false,
+            input: None,
+            outputs: vec![],
         }
+    }
+
+    pub fn set_input(&mut self, input: i32) {
+        self.input = Some(input);
     }
 
     fn read_instruction(&self) -> Instruction {
@@ -18,57 +30,115 @@ impl Computer {
     }
 
     fn execute(&mut self, instruction: &Instruction) {
-        let destination_address = || instruction.destination().value as usize;
+        let raw_values: Vec<i32> = instruction.parameters.iter().map(|p| p.value).collect();
+        let mode_values: Vec<i32> = instruction.parameters.iter().map(|p| p.mode_value(&self.memory)).collect();
+        let initial_instruction_pointer = self.instruction_pointer;
         match instruction.opcode {
-            Opcode::ADD => {
-                let sum = instruction.parameters[..2].iter().map(|p| p.mode_value(&self.memory)).sum();
-                self.memory[destination_address()] = sum;
+            Opcode::Add => {
+                self.write(raw_values[2], mode_values[..2].iter().sum());
             },
-            Opcode::MUL => {
-                let product = instruction.parameters[..2].iter().map(|p| p.mode_value(&self.memory)).product();
-                self.memory[destination_address()] = product;
+            Opcode::Mul => {
+                self.write(raw_values[2], mode_values[..2].iter().product());
             },
-            Opcode::HALT => {
+            Opcode::Input => {
+                let input = self.input.expect("No input provided!");
+                self.write(raw_values[0], input);
+            },
+            Opcode::Output => {
+                let output = instruction.parameters[0].mode_value(&self.memory);
+                self.outputs.push(output);
+            },
+            Opcode::JumpIfTrue => {
+                if mode_values[0] != 0 {
+                    self.jump_to(mode_values[1]);
+                }
+            },
+            Opcode::JumpIfFalse => {
+                if mode_values[0] == 0 {
+                    self.jump_to(mode_values[1]);
+                }
+            },
+            Opcode::LessThan => {
+                self.write_bool(raw_values[2], mode_values[0] < mode_values[1]);
+            },
+            Opcode::Equals => {
+                self.write_bool(raw_values[2], mode_values[0] == mode_values[1]);
+            },
+            Opcode::Halt => {
                 self.halted = true;
             },
         }
-        self.instruction_pointer += instruction.num_values();
+        if initial_instruction_pointer == self.instruction_pointer {
+            self.instruction_pointer += instruction.num_values();
+        }
     }
 
-    pub fn run(mut self) -> i32 {
+    fn write(&mut self, address: i32, value: i32) {
+        self.memory[address as usize] = value;
+    }
+
+    fn write_bool(&mut self, address: i32, value: bool) {
+        self.write(address, value as i32);
+    }
+
+    fn jump_to(&mut self, address: i32) {
+        self.instruction_pointer = address as usize;
+    }
+
+    pub fn run(mut self) -> (Vec<i32>, Vec<i32>) {
         while !self.halted {
             let instruction = self.read_instruction();
             self.execute(&instruction);
         }
-        self.memory[0]
+        (self.outputs, self.memory)
     }
 }
 
+#[derive(Debug)]
 enum Opcode {
-    ADD,
-    MUL,
-    HALT
+    Add,
+    Mul,
+    Input,
+    Output,
+    JumpIfTrue,
+    JumpIfFalse,
+    LessThan,
+    Equals,
+    Halt,
 }
 
 impl Opcode {
     fn parse(value: i32) -> Opcode {
         match value {
-            1 => Opcode::ADD,
-            2 => Opcode::MUL,
-            99 => Opcode::HALT,
+            1 => Opcode::Add,
+            2 => Opcode::Mul,
+            3 => Opcode::Input,
+            4 => Opcode::Output,
+            5 => Opcode::JumpIfTrue,
+            6 => Opcode::JumpIfFalse,
+            7 => Opcode::LessThan,
+            8 => Opcode::Equals,
+            99 => Opcode::Halt,
             _ => panic!()
         }
     }
 
     fn num_parameters(&self) -> usize {
         match self {
-            Opcode::ADD => 3,
-            Opcode::MUL => 3,
-            Opcode::HALT => 0,
+            Opcode::Add => 3,
+            Opcode::Mul => 3,
+            Opcode::Input => 1,
+            Opcode::Output => 1,
+            Opcode::JumpIfTrue => 2,
+            Opcode::JumpIfFalse => 2,
+            Opcode::LessThan => 3,
+            Opcode::Equals => 3,
+            Opcode::Halt => 0,
         }
     }
 }
 
+#[derive(Debug)]
 struct Instruction {
     opcode: Opcode,
     parameters: Vec<Parameter>
@@ -100,12 +170,9 @@ impl Instruction {
     fn num_values(&self) -> usize {
         1 + self.opcode.num_parameters()
     }
-
-    fn destination(&self) -> &Parameter {
-        self.parameters.last().expect("No destination parameter!")
-    }
 }
 
+#[derive(Debug)]
 enum ParameterMode {
     POSITION, IMMEDIATE
 }
@@ -120,6 +187,7 @@ impl ParameterMode {
     }
 }
 
+#[derive(Debug)]
 struct Parameter {
     mode: ParameterMode,
     value: i32,
