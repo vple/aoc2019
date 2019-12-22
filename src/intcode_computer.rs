@@ -1,43 +1,43 @@
 use std::collections::VecDeque;
 
-pub fn parse_program(input: &str) -> Vec<i32> {
+pub fn parse_program(input: &str) -> Vec<i64> {
     input.split(',').filter_map(|v| v.parse().ok()).collect()
 }
 
 pub trait Input {
-    fn read_input(&mut self) -> Option<i32>;
+    fn read_input(&mut self) -> Option<i64>;
 }
 
 impl<T> Input for T
 where 
-    T: FnMut() -> i32 
+    T: FnMut() -> i64 
 {
-    fn read_input(&mut self) -> Option<i32> {
+    fn read_input(&mut self) -> Option<i64> {
         Some(self())
     }
 }
 
-impl Input for VecDeque<i32> {
-    fn read_input(&mut self) -> Option<i32> {
+impl Input for VecDeque<i64> {
+    fn read_input(&mut self) -> Option<i64> {
         self.pop_front()
     }
 }
 
 pub trait Output {
-    fn write_output(&mut self, output: i32);
+    fn write_output(&mut self, output: i64);
 }
 
 impl<T> Output for T
 where
-    T: FnMut(i32)
+    T: FnMut(i64)
 {
-    fn write_output(&mut self, output: i32) {
+    fn write_output(&mut self, output: i64) {
         self(output);
     }
 }
 
-impl Output for VecDeque<i32> {
-    fn write_output(&mut self, output: i32) {
+impl Output for VecDeque<i64> {
+    fn write_output(&mut self, output: i64) {
         self.push_back(output);
     }
 }
@@ -58,7 +58,7 @@ enum Opcode {
 }
 
 impl Opcode {
-    fn parse(value: i32) -> Opcode {
+    fn parse(value: i64) -> Opcode {
         match value {
             1 => Opcode::Add,
             2 => Opcode::Mul,
@@ -96,7 +96,7 @@ enum ParameterMode {
 }
 
 impl ParameterMode {
-    fn of(input: i32) -> ParameterMode {
+    fn of(input: i64) -> ParameterMode {
         match input {
             0 => ParameterMode::Position,
             1 => ParameterMode::Immediate,
@@ -109,7 +109,7 @@ impl ParameterMode {
 #[derive(Debug)]
 struct Parameter {
     mode: ParameterMode,
-    value: i32,
+    value: i64,
 }
 
 #[derive(Debug)]
@@ -125,14 +125,14 @@ impl Instruction {
 }
 
 pub struct Computer {
-    memory: Vec<i32>,
+    memory: Vec<i64>,
     instruction_pointer: usize,
     halted: bool,
-    relative_base: i32,
+    relative_base: i64,
 }
 
 impl Computer {
-    pub fn initialize(program: &[i32]) -> Computer {
+    pub fn initialize(program: &[i64]) -> Computer {
         Computer {
             memory: program.to_vec(),
             instruction_pointer: 0,
@@ -158,7 +158,7 @@ impl Computer {
         }
     }
 
-    pub fn access(&mut self, address: i32) -> &mut i32 {
+    pub fn access(&mut self, address: i64) -> &mut i64 {
         if address < 0 {
             panic!("Must access address >= 0!");
         }
@@ -178,7 +178,7 @@ impl Computer {
     }
 
     fn read_instruction(&mut self) -> Instruction {
-        let value = *self.access(self.instruction_pointer as i32);
+        let value = *self.access(self.instruction_pointer as i64);
         let opcode = Opcode::parse(value % 100);
 
         let mut parameters = vec![];
@@ -187,7 +187,7 @@ impl Computer {
             let mode = ParameterMode::of(modes % 10);
             let parameter = Parameter {
                 mode: mode,
-                value: *self.access((self.instruction_pointer + i) as i32),
+                value: *self.access((self.instruction_pointer + i) as i64),
             };
             parameters.push(parameter);
             modes /= 10;
@@ -227,11 +227,11 @@ impl Computer {
             },
             Opcode::LessThan => {
                 let val = self.read(&parameters[0]) < self.read(&parameters[1]);
-                self.write(&parameters[2], val as i32);
+                self.write(&parameters[2], val as i64);
             },
             Opcode::Equals => {
                 let val = self.read(&parameters[0]) == self.read(&parameters[1]);
-                self.write(&parameters[2], val as i32);
+                self.write(&parameters[2], val as i64);
             },
             Opcode::RelativeBaseOffset => self.relative_base += self.read(&parameters[0]),
             Opcode::Halt => self.halted = true,
@@ -242,7 +242,7 @@ impl Computer {
         true
     }
 
-    fn read(&mut self, parameter: &Parameter) -> i32 {
+    fn read(&mut self, parameter: &Parameter) -> i64 {
         match parameter.mode {
             ParameterMode::Position => *self.access(parameter.value),
             ParameterMode::Immediate => parameter.value,
@@ -250,7 +250,7 @@ impl Computer {
         }
     }
 
-    fn write(&mut self, destination: &Parameter, value: i32) {
+    fn write(&mut self, destination: &Parameter, value: i64) {
         match destination.mode {
             ParameterMode::Position => *self.access(destination.value) = value,
             ParameterMode::Immediate => panic!(),
@@ -258,7 +258,7 @@ impl Computer {
         }
     }
 
-    fn jump_to(&mut self, address: i32) {
+    fn jump_to(&mut self, address: i64) {
         self.instruction_pointer = address as usize;
     }
 }

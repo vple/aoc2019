@@ -4,12 +4,12 @@ use std::collections::VecDeque;
 use crate::intcode_computer::{self, Computer};
 
 #[aoc_generator(day7)]
-fn parse(input: &str) -> Vec<i32> {
+fn parse(input: &str) -> Vec<i64> {
     intcode_computer::parse_program(input)
 }
 
 #[aoc(day7, part1)]
-fn part1(program: &[i32]) -> i32 {
+fn part1(program: &[i64]) -> i64 {
     (0..5)
         .permutations(5)
         .map(|p| run_series_amplifiers(program, &p))
@@ -17,8 +17,8 @@ fn part1(program: &[i32]) -> i32 {
         .unwrap()
 }
 
-fn run_series_amplifiers(program: &[i32], phase_settings: &[i32]) -> i32 {
-    let mut io: Vec<VecDeque<i32>> = (0..=phase_settings.len()).map(|_| VecDeque::new()).collect();
+fn run_series_amplifiers(program: &[i64], phase_settings: &[i64]) -> i64 {
+    let mut io: Vec<VecDeque<i64>> = (0..=phase_settings.len()).map(|_| VecDeque::new()).collect();
     let mut amplifiers: Vec<Computer> = (0..phase_settings.len()).map(|_| Computer::initialize(program)).collect();
     for i in 0..phase_settings.len() {
         io[i].push_back(phase_settings[i]);
@@ -33,7 +33,7 @@ fn run_series_amplifiers(program: &[i32], phase_settings: &[i32]) -> i32 {
 }
 
 #[aoc(day7, part2)]
-fn part2(program: &[i32]) -> i32 {
+fn part2(program: &[i64]) -> i64 {
     (5..=9)
         .permutations(5)
         .map(|p| run_feedback_amplifiers(program, &p))
@@ -41,8 +41,8 @@ fn part2(program: &[i32]) -> i32 {
         .unwrap()
 }
 
-fn run_feedback_amplifiers(program: &[i32], phase_settings: &[i32]) -> i32 {
-    let mut io: Vec<VecDeque<i32>> = (0..phase_settings.len()).map(|_| VecDeque::new()).collect();
+fn run_feedback_amplifiers(program: &[i64], phase_settings: &[i64]) -> i64 {
+    let mut io: Vec<VecDeque<i64>> = (0..phase_settings.len()).map(|_| VecDeque::new()).collect();
     let mut amplifiers: Vec<Computer> = (0..phase_settings.len()).map(|_| Computer::initialize(program)).collect();
     for i in 0..phase_settings.len() {
         io[i].push_back(phase_settings[i]);

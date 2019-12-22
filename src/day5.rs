@@ -3,12 +3,12 @@ use std::collections::VecDeque;
 use crate::intcode_computer::{self, Computer};
 
 #[aoc_generator(day5)]
-fn parse(input: &str) -> Vec<i32> {
+fn parse(input: &str) -> Vec<i64> {
     intcode_computer::parse_program(input)
 }
 
 #[aoc(day5, part1)]
-fn part1(program: &[i32]) -> i32 {
+fn part1(program: &[i64]) -> i64 {
     let mut computer = Computer::initialize(program);
     let mut input = VecDeque::new();
     let mut output = VecDeque::new();
@@ -19,7 +19,7 @@ fn part1(program: &[i32]) -> i32 {
 }
 
 #[aoc(day5, part2)]
-fn part2(program: &[i32]) -> i32 {
+fn part2(program: &[i64]) -> i64 {
     let mut computer = Computer::initialize(program);
     let mut input = VecDeque::new();
     let mut output = VecDeque::new();
