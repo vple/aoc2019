@@ -12,6 +12,14 @@ pub struct Computer {
     outputs: Vec<i32>,
 }
 
+trait Input {
+    fn read_input(&mut self) -> Option<i32>;
+}
+
+trait Output {
+    fn write_output(&mut self, output: i32);
+}
+
 impl Computer {
     pub fn initialize(program: &[i32]) -> Computer {
         Computer {
@@ -32,39 +40,42 @@ impl Computer {
     }
 
     fn execute(&mut self, instruction: &Instruction) {
-        let raw_values: Vec<i32> = instruction.parameters.iter().map(|p| p.value).collect();
-        let mode_values: Vec<i32> = instruction.parameters.iter().map(|p| p.mode_value(&self.memory)).collect();
         let initial_instruction_pointer = self.instruction_pointer;
+        let parameters = &instruction.parameters;
         match instruction.opcode {
             Opcode::Add => {
-                self.write(raw_values[2], mode_values[..2].iter().sum());
+                let val = self.read(&parameters[0]) + self.read(&parameters[1]);
+                self.write(&parameters[2], val);
             },
             Opcode::Mul => {
-                self.write(raw_values[2], mode_values[..2].iter().product());
+                let val = self.read(&parameters[0]) * self.read(&parameters[1]);
+                self.write(&parameters[2], val);
             },
             Opcode::Input => {
                 let input = self.inputs.pop_front().expect("No input provided!");
-                self.write(raw_values[0], input);
+                self.write(&parameters[0], input);
             },
             Opcode::Output => {
-                let output = instruction.parameters[0].mode_value(&self.memory);
+                let output = self.read(&parameters[0]);
                 self.outputs.push(output);
             },
             Opcode::JumpIfTrue => {
-                if mode_values[0] != 0 {
-                    self.jump_to(mode_values[1]);
+                if self.read(&parameters[0]) != 0 {
+                    self.jump_to(self.read(&parameters[1]));
                 }
             },
             Opcode::JumpIfFalse => {
-                if mode_values[0] == 0 {
-                    self.jump_to(mode_values[1]);
+                if self.read(&parameters[0]) == 0 {
+                    self.jump_to(self.read(&parameters[1]));
                 }
             },
             Opcode::LessThan => {
-                self.write_bool(raw_values[2], mode_values[0] < mode_values[1]);
+                let val = self.read(&parameters[0]) < self.read(&parameters[1]);
+                self.write(&parameters[2], val as i32);
             },
             Opcode::Equals => {
-                self.write_bool(raw_values[2], mode_values[0] == mode_values[1]);
+                let val = self.read(&parameters[0]) == self.read(&parameters[1]);
+                self.write(&parameters[2], val as i32);
             },
             Opcode::Halt => {
                 self.halted = true;
@@ -75,12 +86,18 @@ impl Computer {
         }
     }
 
-    fn write(&mut self, address: i32, value: i32) {
-        self.memory[address as usize] = value;
+    fn read(&self, parameter: &Parameter) -> i32 {
+        match parameter.mode {
+            ParameterMode::Position => self.memory[parameter.value as usize],
+            ParameterMode::Immediate => parameter.value,
+        }
     }
 
-    fn write_bool(&mut self, address: i32, value: bool) {
-        self.write(address, value as i32);
+    fn write(&mut self, destination: &Parameter, value: i32) {
+        match destination.mode {
+            ParameterMode::Position => self.memory[destination.value as usize] = value,
+            ParameterMode::Immediate => panic!()
+        }
     }
 
     fn jump_to(&mut self, address: i32) {
@@ -176,14 +193,14 @@ impl Instruction {
 
 #[derive(Debug)]
 enum ParameterMode {
-    POSITION, IMMEDIATE
+    Position, Immediate
 }
 
 impl ParameterMode {
     fn parse(input: i32) -> ParameterMode {
         match input {
-            0 => ParameterMode::POSITION,
-            1 => ParameterMode::IMMEDIATE,
+            0 => ParameterMode::Position,
+            1 => ParameterMode::Immediate,
             _ => unreachable!(),
         }
     }
@@ -193,13 +210,4 @@ impl ParameterMode {
 struct Parameter {
     mode: ParameterMode,
     value: i32,
-}
-
-impl Parameter {
-    fn mode_value(&self, memory: &[i32]) -> i32 {
-        match self.mode {
-            ParameterMode::IMMEDIATE => self.value,
-            ParameterMode::POSITION => memory[self.value as usize],
-        }
-    }
 }
