@@ -4,20 +4,60 @@ pub fn parse_program(input: &str) -> Vec<i32> {
     input.split(',').filter_map(|v| v.parse().ok()).collect()
 }
 
-pub struct Computer {
-    memory: Vec<i32>,
-    instruction_pointer: usize,
-    halted: bool,
-    inputs: VecDeque<i32>,
-    outputs: Vec<i32>,
-}
-
-trait Input {
+pub trait Input {
     fn read_input(&mut self) -> Option<i32>;
 }
 
-trait Output {
+impl<T> Input for T
+where 
+    T: FnMut() -> i32 
+{
+    fn read_input(&mut self) -> Option<i32> {
+        Some(self())
+    }
+}
+
+impl Input for VecDeque<i32> {
+    fn read_input(&mut self) -> Option<i32> {
+        self.pop_front()
+    }
+}
+
+pub trait Output {
     fn write_output(&mut self, output: i32);
+}
+
+impl<T> Output for T
+where
+    T: FnMut(i32)
+{
+    fn write_output(&mut self, output: i32) {
+        self(output);
+    }
+}
+
+impl Output for VecDeque<i32> {
+    fn write_output(&mut self, output: i32) {
+        self.push_back(output);
+    }
+}
+
+#[derive(Debug)]
+struct Instruction {
+    opcode: Opcode,
+    parameters: Vec<Parameter>
+}
+
+impl Instruction {
+    fn num_values(&self) -> usize {
+        1 + self.opcode.num_parameters()
+    }
+}
+
+pub struct Computer {
+    pub memory: Vec<i32>,
+    instruction_pointer: usize,
+    halted: bool,
 }
 
 impl Computer {
@@ -26,39 +66,69 @@ impl Computer {
             memory: program.to_vec(),
             instruction_pointer: 0,
             halted: false,
-            inputs: VecDeque::new(),
-            outputs: vec![],
         }
     }
 
-    pub fn add_input(&mut self, input: i32) {
-        self.inputs.push_back(input);
+    pub fn run(&mut self) {
+        self.run_with_io(&mut || 0, &mut |_| {});
+    }
+
+    pub fn run_with_io<I: Input, O: Output>(&mut self, input: &mut I, output: &mut O) {
+        while !self.halted {
+            let success = self.step(input, output);
+            if !success {
+                break;
+            }
+        }
+    }
+
+    fn step<I: Input, O: Output>(&mut self, input: &mut I, output: &mut O) -> bool {
+        if self.halted {
+            return false;
+        }
+
+        let instruction = self.read_instruction();
+        self.execute_instruction(&instruction, input, output)
     }
 
     fn read_instruction(&self) -> Instruction {
-        Instruction::parse(&self.memory[self.instruction_pointer..])
+        let value = &self.memory[self.instruction_pointer];
+        let opcode = Opcode::parse(value % 100);
+
+        let mut parameters = vec![];
+        let mut modes = value / 100;
+        for i in 1..=opcode.num_parameters() {
+            let mode = ParameterMode::of(modes % 10);
+            let parameter = Parameter {
+                mode: mode,
+                value: self.memory[self.instruction_pointer + i],
+            };
+            parameters.push(parameter);
+            modes /= 10;
+        }
+
+        Instruction { opcode, parameters }
     }
 
-    fn execute(&mut self, instruction: &Instruction) {
+    fn execute_instruction<I: Input, O: Output>(&mut self, instruction: &Instruction, input: &mut I, output: &mut O) -> bool {
         let initial_instruction_pointer = self.instruction_pointer;
         let parameters = &instruction.parameters;
         match instruction.opcode {
             Opcode::Add => {
-                let val = self.read(&parameters[0]) + self.read(&parameters[1]);
-                self.write(&parameters[2], val);
+                let value = self.read(&parameters[0]) + self.read(&parameters[1]);
+                self.write(&parameters[2], value);
             },
             Opcode::Mul => {
-                let val = self.read(&parameters[0]) * self.read(&parameters[1]);
-                self.write(&parameters[2], val);
+                let value = self.read(&parameters[0]) * self.read(&parameters[1]);
+                self.write(&parameters[2], value);
             },
-            Opcode::Input => {
-                let input = self.inputs.pop_front().expect("No input provided!");
-                self.write(&parameters[0], input);
-            },
-            Opcode::Output => {
-                let output = self.read(&parameters[0]);
-                self.outputs.push(output);
-            },
+            Opcode::Input => 
+                if let Some(value) = input.read_input() {
+                    self.write(&parameters[0], value);
+                } else {
+                    return false
+                },
+            Opcode::Output => output.write_output(self.read(&parameters[0])),
             Opcode::JumpIfTrue => {
                 if self.read(&parameters[0]) != 0 {
                     self.jump_to(self.read(&parameters[1]));
@@ -77,13 +147,12 @@ impl Computer {
                 let val = self.read(&parameters[0]) == self.read(&parameters[1]);
                 self.write(&parameters[2], val as i32);
             },
-            Opcode::Halt => {
-                self.halted = true;
-            },
+            Opcode::Halt => self.halted = true,
         }
         if initial_instruction_pointer == self.instruction_pointer {
             self.instruction_pointer += instruction.num_values();
         }
+        true
     }
 
     fn read(&self, parameter: &Parameter) -> i32 {
@@ -102,14 +171,6 @@ impl Computer {
 
     fn jump_to(&mut self, address: i32) {
         self.instruction_pointer = address as usize;
-    }
-
-    pub fn run(mut self) -> (Vec<i32>, Vec<i32>) {
-        while !self.halted {
-            let instruction = self.read_instruction();
-            self.execute(&instruction);
-        }
-        (self.outputs, self.memory)
     }
 }
 
@@ -138,7 +199,7 @@ impl Opcode {
             7 => Opcode::LessThan,
             8 => Opcode::Equals,
             99 => Opcode::Halt,
-            _ => panic!()
+            _ => panic!("Invalid opcode! {}", value)
         }
     }
 
@@ -158,50 +219,16 @@ impl Opcode {
 }
 
 #[derive(Debug)]
-struct Instruction {
-    opcode: Opcode,
-    parameters: Vec<Parameter>
-}
-
-impl Instruction {
-    fn parse(memory: &[i32]) -> Instruction {
-        let first_value = memory[0];
-        let opcode = Opcode::parse(first_value % 100);
-        let num_parameters = opcode.num_parameters();
-        let parameters = Instruction::parse_parameters(num_parameters, first_value/100, &memory[1..1+num_parameters]);
-        Instruction { opcode, parameters }
-    }
-
-    fn parse_parameters(n: usize, modes: i32, values: &[i32]) -> Vec<Parameter> {
-        if n == 0 {
-            return vec![];
-        }
-        let mode = ParameterMode::parse(modes % 10);
-        let parameter = Parameter {
-            mode: mode,
-            value: values[0],
-        };
-        let mut result = vec![parameter];
-        result.extend(Instruction::parse_parameters(n-1, modes/10, &values[1..]));
-        result
-    }
-
-    fn num_values(&self) -> usize {
-        1 + self.opcode.num_parameters()
-    }
-}
-
-#[derive(Debug)]
 enum ParameterMode {
     Position, Immediate
 }
 
 impl ParameterMode {
-    fn parse(input: i32) -> ParameterMode {
+    fn of(input: i32) -> ParameterMode {
         match input {
             0 => ParameterMode::Position,
             1 => ParameterMode::Immediate,
-            _ => unreachable!(),
+            _ => panic!("Invalid parameter mode!"),
         }
     }
 }

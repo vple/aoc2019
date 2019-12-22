@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use std::collections::VecDeque;
 
 use crate::intcode_computer::{self, Computer};
 
@@ -11,28 +12,32 @@ fn parse(input: &str) -> Vec<i32> {
 fn part1(program: &[i32]) -> i32 {
     (0..5)
         .permutations(5)
-        .map(|p| {
-            p.into_iter().map(|v| {
-                let mut computer = Computer::initialize(program);
-                computer.add_input(v);
-                computer
-            })
-        })
-        .map(|computers| {
-            computers.into_iter().fold(0, |signal, mut c| {
-                c.add_input(signal);
-                let (outputs, _) = c.run();
-                outputs[0]
-            })
-        })
+        .map(|p| run_series_amplifiers(program, &p))
         .max()
         .unwrap()
+}
+
+fn run_series_amplifiers(program: &[i32], phase_settings: &[i32]) -> i32 {    
+    let mut io: Vec<VecDeque<i32>> = (0..=phase_settings.len()).map(|_| VecDeque::new()).collect();
+    let mut amplifiers: Vec<Computer> = (0..phase_settings.len()).map(|_| Computer::initialize(program)).collect();
+    for i in 0..phase_settings.len() {
+        io[i].push_back(phase_settings[i]);
+    }
+    io[0].push_back(0);
+    for i in 0..phase_settings.len() {
+        let mut output = 0;
+        amplifiers[i].run_with_io(&mut io[i], &mut |o| output = o);
+        io[i+1].push_back(output);
+    }
+    io[phase_settings.len()].pop_front().expect("No output!")
 }
 
 #[aoc(day7, part2)]
 fn part2(program: &[i32]) -> i32 {
     let mut computer = Computer::initialize(program);
-    computer.add_input(5);
-    let (outputs, _) = computer.run();
-    *outputs.last().expect("No diagnostic!")
+    // computer.add_input(5);
+    // let (outputs, _) = computer.run();
+    // *outputs.last().expect("No diagnostic!")
+
+    1
 }

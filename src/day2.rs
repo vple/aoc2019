@@ -13,10 +13,9 @@ fn part1(ints: &[i32]) -> i32 {
     alarm_program[1] = 12;
     alarm_program[2] = 2;
 
-    let computer = Computer::initialize(&alarm_program);
-    let (_, memory) = computer.run();
-    println!("{:?}", memory);
-    memory[0]
+    let mut computer = Computer::initialize(&alarm_program);
+    computer.run();
+    computer.memory[0]
 }
 
 #[aoc(day2, part2)]
@@ -27,9 +26,9 @@ fn part2(program: &[i32]) -> i32 {
             let mut program = program.to_vec();
             program[1] = noun as i32;
             program[2] = verb as i32;
-            let computer = Computer::initialize(&program);
-            let (_, memory) = computer.run();
-            if memory[0] == TARGET {
+            let mut computer = Computer::initialize(&program);
+            computer.run();
+            if computer.memory[0] == TARGET {
                 return (100 * noun + verb) as i32
             }
         }
