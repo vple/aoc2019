@@ -69,6 +69,10 @@ impl Computer {
         }
     }
 
+    pub fn is_halted(&self) -> bool {
+        self.halted
+    }
+
     pub fn run(&mut self) {
         self.run_with_io(&mut || 0, &mut |_| {});
     }
