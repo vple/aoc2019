@@ -15,7 +15,7 @@ fn part1(ints: &[i32]) -> i32 {
 
     let mut computer = Computer::initialize(&alarm_program);
     computer.run();
-    computer.memory[0]
+    *computer.access(0)
 }
 
 #[aoc(day2, part2)]
@@ -28,7 +28,7 @@ fn part2(program: &[i32]) -> i32 {
             program[2] = verb as i32;
             let mut computer = Computer::initialize(&program);
             computer.run();
-            if computer.memory[0] == TARGET {
+            if *computer.access(0) == TARGET {
                 return (100 * noun + verb) as i32
             }
         }

@@ -42,6 +42,76 @@ impl Output for VecDeque<i32> {
     }
 }
 
+
+#[derive(Debug)]
+enum Opcode {
+    Add,
+    Mul,
+    Input,
+    Output,
+    JumpIfTrue,
+    JumpIfFalse,
+    LessThan,
+    Equals,
+    RelativeBaseOffset,
+    Halt,
+}
+
+impl Opcode {
+    fn parse(value: i32) -> Opcode {
+        match value {
+            1 => Opcode::Add,
+            2 => Opcode::Mul,
+            3 => Opcode::Input,
+            4 => Opcode::Output,
+            5 => Opcode::JumpIfTrue,
+            6 => Opcode::JumpIfFalse,
+            7 => Opcode::LessThan,
+            8 => Opcode::Equals,
+            9 => Opcode::RelativeBaseOffset,
+            99 => Opcode::Halt,
+            _ => panic!("Invalid opcode! {}", value)
+        }
+    }
+
+    fn num_parameters(&self) -> usize {
+        match self {
+            Opcode::Add => 3,
+            Opcode::Mul => 3,
+            Opcode::Input => 1,
+            Opcode::Output => 1,
+            Opcode::JumpIfTrue => 2,
+            Opcode::JumpIfFalse => 2,
+            Opcode::LessThan => 3,
+            Opcode::Equals => 3,
+            Opcode::RelativeBaseOffset => 1,
+            Opcode::Halt => 0,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum ParameterMode {
+    Position, Immediate, Relative
+}
+
+impl ParameterMode {
+    fn of(input: i32) -> ParameterMode {
+        match input {
+            0 => ParameterMode::Position,
+            1 => ParameterMode::Immediate,
+            2 => ParameterMode::Relative,
+            _ => panic!("Invalid parameter mode!"),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Parameter {
+    mode: ParameterMode,
+    value: i32,
+}
+
 #[derive(Debug)]
 struct Instruction {
     opcode: Opcode,
@@ -55,9 +125,10 @@ impl Instruction {
 }
 
 pub struct Computer {
-    pub memory: Vec<i32>,
+    memory: Vec<i32>,
     instruction_pointer: usize,
     halted: bool,
+    relative_base: i32,
 }
 
 impl Computer {
@@ -66,6 +137,7 @@ impl Computer {
             memory: program.to_vec(),
             instruction_pointer: 0,
             halted: false,
+            relative_base: 0,
         }
     }
 
@@ -86,6 +158,16 @@ impl Computer {
         }
     }
 
+    pub fn access(&mut self, address: i32) -> &mut i32 {
+        if address < 0 {
+            panic!("Must access address >= 0!");
+        }
+        if address as usize >= self.memory.len() {
+            self.memory.resize(self.memory.len() * 2, 0);
+        }
+        self.memory.get_mut(address as usize).unwrap()
+    }
+
     fn step<I: Input, O: Output>(&mut self, input: &mut I, output: &mut O) -> bool {
         if self.halted {
             return false;
@@ -95,8 +177,8 @@ impl Computer {
         self.execute_instruction(&instruction, input, output)
     }
 
-    fn read_instruction(&self) -> Instruction {
-        let value = &self.memory[self.instruction_pointer];
+    fn read_instruction(&mut self) -> Instruction {
+        let value = *self.access(self.instruction_pointer as i32);
         let opcode = Opcode::parse(value % 100);
 
         let mut parameters = vec![];
@@ -105,7 +187,7 @@ impl Computer {
             let mode = ParameterMode::of(modes % 10);
             let parameter = Parameter {
                 mode: mode,
-                value: self.memory[self.instruction_pointer + i],
+                value: *self.access((self.instruction_pointer + i) as i32),
             };
             parameters.push(parameter);
             modes /= 10;
@@ -135,12 +217,12 @@ impl Computer {
             Opcode::Output => output.write_output(self.read(&parameters[0])),
             Opcode::JumpIfTrue => {
                 if self.read(&parameters[0]) != 0 {
-                    self.jump_to(self.read(&parameters[1]));
+                    self.instruction_pointer = self.read(&parameters[1]) as usize;
                 }
             },
             Opcode::JumpIfFalse => {
                 if self.read(&parameters[0]) == 0 {
-                    self.jump_to(self.read(&parameters[1]));
+                    self.instruction_pointer = self.read(&parameters[1]) as usize;
                 }
             },
             Opcode::LessThan => {
@@ -151,6 +233,7 @@ impl Computer {
                 let val = self.read(&parameters[0]) == self.read(&parameters[1]);
                 self.write(&parameters[2], val as i32);
             },
+            Opcode::RelativeBaseOffset => self.relative_base += self.read(&parameters[0]),
             Opcode::Halt => self.halted = true,
         }
         if initial_instruction_pointer == self.instruction_pointer {
@@ -159,86 +242,23 @@ impl Computer {
         true
     }
 
-    fn read(&self, parameter: &Parameter) -> i32 {
+    fn read(&mut self, parameter: &Parameter) -> i32 {
         match parameter.mode {
-            ParameterMode::Position => self.memory[parameter.value as usize],
+            ParameterMode::Position => *self.access(parameter.value),
             ParameterMode::Immediate => parameter.value,
+            ParameterMode::Relative => *self.access(self.relative_base + parameter.value),
         }
     }
 
     fn write(&mut self, destination: &Parameter, value: i32) {
         match destination.mode {
-            ParameterMode::Position => self.memory[destination.value as usize] = value,
-            ParameterMode::Immediate => panic!()
+            ParameterMode::Position => *self.access(destination.value) = value,
+            ParameterMode::Immediate => panic!(),
+            ParameterMode::Relative => *self.access(self.relative_base + destination.value) = value,
         }
     }
 
     fn jump_to(&mut self, address: i32) {
         self.instruction_pointer = address as usize;
     }
-}
-
-#[derive(Debug)]
-enum Opcode {
-    Add,
-    Mul,
-    Input,
-    Output,
-    JumpIfTrue,
-    JumpIfFalse,
-    LessThan,
-    Equals,
-    Halt,
-}
-
-impl Opcode {
-    fn parse(value: i32) -> Opcode {
-        match value {
-            1 => Opcode::Add,
-            2 => Opcode::Mul,
-            3 => Opcode::Input,
-            4 => Opcode::Output,
-            5 => Opcode::JumpIfTrue,
-            6 => Opcode::JumpIfFalse,
-            7 => Opcode::LessThan,
-            8 => Opcode::Equals,
-            99 => Opcode::Halt,
-            _ => panic!("Invalid opcode! {}", value)
-        }
-    }
-
-    fn num_parameters(&self) -> usize {
-        match self {
-            Opcode::Add => 3,
-            Opcode::Mul => 3,
-            Opcode::Input => 1,
-            Opcode::Output => 1,
-            Opcode::JumpIfTrue => 2,
-            Opcode::JumpIfFalse => 2,
-            Opcode::LessThan => 3,
-            Opcode::Equals => 3,
-            Opcode::Halt => 0,
-        }
-    }
-}
-
-#[derive(Debug)]
-enum ParameterMode {
-    Position, Immediate
-}
-
-impl ParameterMode {
-    fn of(input: i32) -> ParameterMode {
-        match input {
-            0 => ParameterMode::Position,
-            1 => ParameterMode::Immediate,
-            _ => panic!("Invalid parameter mode!"),
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Parameter {
-    mode: ParameterMode,
-    value: i32,
 }
