@@ -43,9 +43,6 @@ fn part2(layers: &Vec<Layer>) -> String {
     let initial = Layer { pixels: vec![2; WIDTH * HEIGHT] };
     let full = layers.iter().fold(initial, |acc, layer| acc.merge(layer));
 
-
-    println!("{:?}", full.pixels);
-
     let mut result = String::new();
 
     result.push_str("\n");
@@ -56,7 +53,6 @@ fn part2(layers: &Vec<Layer>) -> String {
             } else {
                 result.push_str("▓");
             }
-            // result.push_str(&full.pixels[HEIGHT * x + y].to_string());
         }
         result.push_str("\n");
     }
